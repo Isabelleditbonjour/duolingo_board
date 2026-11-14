@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>🎯 通关进度中心</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#E8EDF2;--sidebar:#DCE4EC;--card:#F2F5F8;--topbar:#CDD8E4;--border:#B8C8D6;--title:#2D3E4F;--text:#4A5C6D;--muted:#8A9BAC;--red:#C08E8E;--yellow:#D9C7B2;--green:#A3B49F}
+body{font-family:-apple-system,"PingFang SC",sans-serif;background:var(--bg);color:var(--text);height:100vh;overflow:hidden}
+#topbar{height:48px;background:var(--topbar);display:flex;align-items:center;padding:0 16px;border-bottom:1px solid var(--border);gap:8px}
+#topbar h1{font-size:15px;color:var(--title);font-weight:600;white-space:nowrap}
+#topbar button{padding:4px 10px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text);cursor:pointer}
+#topbar button:hover{background:#fff}
+#topbar .danger{color:var(--red);border-color:var(--red)}
+#topbar .hint{margin-left:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+#topbar .dot-sync{width:8px;height:8px;border-radius:50%;background:var(--muted);transition:background .3s}
+#topbar .dot-sync.ok{background:var(--green)}
+#topbar .dot-sync.syncing{background:var(--yellow);animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+#app{display:flex;height:calc(100vh - 48px)}
+#left{width:240px;background:var(--sidebar);border-right:1px solid var(--border);overflow-y:auto;padding:10px 0}
+#mid{flex:1;overflow-y:auto;padding:14px;border-right:1px solid var(--border)}
+#right{width:300px;overflow-y:auto;padding:14px;background:var(--card)}
+.tbar{display:flex;gap:6px;align-items:center;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tbar label{font-size:12px;color:var(--muted)}
+.tbar select{padding:3px 6px;font-size:12px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--text)}
+.tbar .addtag{padding:3px 8px;font-size:11px;border:1px dashed var(--border);border-radius:4px;background:none;color:var(--muted);cursor:pointer}
+.tbar .addtag:hover{border-color:var(--green);color:var(--title)}
+.tbar .deltag{padding:3px 6px;font-size:11px;border:1px solid var(--border);border-radius:4px;background:none;color:var(--muted);cursor:pointer}
+.tbar .deltag:hover{color:var(--red)}
+.tn{padding:5px 10px 5px 18px;cursor:pointer;font-size:13px;color:var(--text);border-left:3px solid transparent;display:flex;align-items:center}
+.tn:hover{background:rgba(255,255,255,.5)}
+.tn.act{background:var(--card);border-left-color:var(--green);color:var(--title);font-weight:500}
+.tn.d1{padding-left:30px}.tn.d2{padding-left:42px}.tn.d3{padding-left:54px}.tn.d4{padding-left:66px}
+.tn .dot{width:8px;height:8px;border-radius:50%;margin-right:6px;flex-shrink:0}
+.tn .lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dr{background:var(--red)}.dy{background:var(--yellow)}.dg{background:var(--green)}
+.rni{width:100%;font-size:13px;color:var(--title);background:#fff;border:1px solid var(--green);border-radius:3px;padding:2px 5px;outline:none}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.card:hover{box-shadow:0 2px 6px rgba(45,62,79,.1)}
+.card.act{border-color:var(--green)}
+.card .ct{font-size:13px;font-weight:500;color:var(--title);margin-bottom:3px}
+.card .cm{font-size:11px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.card .tg{padding:1px 5px;border-radius:3px;font-size:10px;color:#fff}
+#right h3{font-size:13px;color:var(--title);margin-bottom:10px}
+#etitle{width:100%;font-size:15px;font-weight:600;color:var(--title);border:none;background:transparent;border-bottom:1px solid var(--border);padding:5px 0;margin-bottom:10px;outline:none}
+#econtent{width:100%;min-height:200px;font-size:13px;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;background:var(--card);outline:none;line-height:1.6}
+#econtent:focus{border-color:var(--green)}
+.empty{text-align:center;color:var(--muted);font-size:13px;padding:30px 16px}
+</style>
+</head>
+<body>
+<div id="topbar">
+<h1>🎯 通关进度中心</h1>
+<button onclick="addSib()">+ 同级</button>
+<button onclick="addChild()">+ 子级</button>
+<button class="danger" onclick="delNode()">删除</button>
+<span class="hint"><span class="dot-sync" id="syncDot"></span><span id="hint">连接中...</span></span>
+</div>
+<div id="app">
+<div id="left"></div>
+<div id="mid">
+<div class="tbar">
+<label>状态</label>
+<select id="selStatus" onchange="chgStatus()">
+<option value="red">🔴 待攻克</option>
+<option value="yellow">🟡 在练</option>
+<option value="green">🟢 搞定</option>
+</select>
+<label>板块</label>
+<select id="selTag" onchange="chgTag()"></select>
+<button class="addtag" onclick="addTag()">+ 新板块</button>
+<button class="deltag" onclick="delTag()">✕</button>
+</div>
+<div id="cards"></div>
+</div>
+<div id="right">
+<h3>编辑区</h3>
+<input id="etitle" placeholder="节点标题">
+<div id="econtent" contenteditable="true"></div>
+</div>
+</div>
+<script>
+var K='duolingo_v3',TK='duolingo_tags';
+
+var BLOB_ID = '01a1da62-e343-7c5a-b8ca-ee0990e50a71';
+var BLOB_URL = 'https://jsonblob.com/api/jsonBlob/' + BLOB_ID;
+
+function pullCloud(){
+  fetch(BLOB_URL)
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d && d.tree){
+        tree = d.tree;
+        if(d.tags) custom = d.tags;
+        localStorage.setItem(K, JSON.stringify(tree));
+        localStorage.setItem(TK, JSON.stringify(custom));
+        render();
+        setSyncDot('ok');
+      } else {
+        pushCloud();
+      }
+    })
+    .catch(function(){ setSyncDot('off'); });
+}
+
+function pushCloud(){
+  setSyncDot('syncing');
+  fetch(BLOB_URL, {
+    method: 'PUT',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({tree: tree, tags: custom})
+  })
+  .then(function(r){ if(r.ok) setSyncDot('ok'); else setSyncDot('off'); })
+  .catch(function(){ setSyncDot('off'); });
+}
+
+// 心跳：每12小时自动同步一次，防止blob过期
+setInterval(pushCloud, 12 * 60 * 60 * 1000);
+function tags(){return DEF.concat(custom)}
+function tagOf(id){var t=tags().find(function(x){return x.id===id});return t||DEF[0]}
+
+function setSyncDot(cls){document.getElementById('syncDot').className='dot-sync '+cls}
+
+
+
+setSyncDot('');
+document.getElementById('hint').textContent='离线模式';
+var tree=JSON.parse(localStorage.getItem(K))||null;
+var act=tree?tree.id:'root';
+var editId='';
+var DEF=['writing','vocab','three','error'];
+var custom=JSON.parse(localStorage.getItem('duolingo_custom')||'[]');
+if(!tree)tree={id:'root',title:'我的考试地图',content:'',status:'yellow',tag:'writing',children:[{id:'n1',title:'写作 · 5分钟协奏',content:'',status:'red',tag:'writing',children:[]},{id:'n2',title:'词汇积累',content:'',status:'yellow',tag:'vocab',children:[]},{id:'n3',title:'三分题笔记',content:'',status:'yellow',tag:'three',children:[]},{id:'n4',title:'错题本',content:'',status:'red',tag:'error',children:[]}]};
+function save(){localStorage.setItem(K,JSON.stringify(tree));}
+var COLORS={red:'#E8A0A0',yellow:'#E8D5A0',green:'#A0D5B0'};
+render();
+
+
+
+function find(id,n){n=n||tree;if(n.id===id)return n;for(var i=0;i<(n.children||[]).length;i++){var r=find(id,n.children[i]);if(r)return r}return null}
+function parent(id,n){n=n||tree;for(var i=0;i<(n.children||[]).length;i++){if(n.children[i].id===id)return n;var r=parent(id,n.children[i]);if(r)return r}return null}
+function uid(){return'n'+Date.now()+Math.random().toString(36).slice(2,5)}
+
+function drawTags(){
+var s=document.getElementById('selTag'),n=find(act),cur=n?n.tag:'writing';
+s.innerHTML='';
+tags().forEach(function(t){var o=document.createElement('option');o.value=t.id;o.textContent=t.l;if(t.id===cur)o.selected=true;s.appendChild(o)});
+}
+
+function drawTree(){
+var p=document.getElementById('left');p.innerHTML='';
+function walk(n,d){
+var div=document.createElement('div');
+div.className='tn d'+d+(n.id===act?' act':'');
+var dot=document.createElement('span');dot.className='dot d'+n.status[0];div.appendChild(dot);
+if(n.id===editId){
+var inp=document.createElement('input');inp.className='rni';inp.value=n.title;
+inp.onkeydown=function(e){if(e.key==='Enter')done(n,inp.value);if(e.key==='Escape'){editId=null;drawTree()}};
+inp.onblur=function(){done(n,inp.value)};
+div.appendChild(inp);setTimeout(function(){inp.focus();inp.select()},0);
+}else{
+var sp=document.createElement('span');sp.className='lbl';sp.textContent=n.title;div.appendChild(sp);
+}
+div.onclick=function(e){if(e.target.tagName==='INPUT')return;act=n.id;render()};
+div.ondblclick=function(e){if(e.target.tagName==='INPUT')return;editId=n.id;drawTree()};
+p.appendChild(div);
+(n.children||[]).forEach(function(c){walk(c,d+1)});
+}
+walk(tree,0);
+}
+
+function done(n,v){if(v.trim())n.title=v.trim();editId=null;save();render()}
+
+function drawMid(){
+var p=document.getElementById('cards'),n=find(act);p.innerHTML='';
+if(!n)return;
+if(n.children&&n.children.length){
+n.children.forEach(function(c){
+var div=document.createElement('div');div.className='card'+(c.id===act?' act':'');
+var t=tagOf(c.tag);
+div.innerHTML='<div class="ct">'+esc(c.title)+'</div><div class="cm"><span class="tg" style="background:'+t.c+'">'+t.l+'</span><span class="dot d'+c.status[0]+'"></span></div>';
+div.onclick=function(){act=c.id;render()};
+p.appendChild(div);
+});
+}else{
+p.innerHTML='<div class="empty">这个节点还没有子项<br>用顶栏「+ 子级」添加</div>';
+}
+}
+
+function drawRight(){
+var n=find(act);if(!n)return;
+document.getElementById('etitle').value=n.title;
+document.getElementById('econtent').textContent=n.content||'';
+document.getElementById('selStatus').value=n.status;
+drawTags();
+}
+
+function render(){if(!tree)return;drawTree();drawMid();drawRight()}
+
+document.getElementById('etitle').oninput=function(){var n=find(act);if(n){n.title=this.value;save();drawTree();drawMid()}};
+document.getElementById('econtent').oninput=function(){var n=find(act);if(n){n.content=this.textContent;save()}};
+function addChg(){var name=prompt('输入新板块名称：');if(!name)return;custom.push(name);localStorage.setItem('duolingo_custom',JSON.stringify(custom));render();}
+function addSib(){
+var p=parent(act);if(!p){alert('根节点无法添加同级');return}
+var nd={id:uid(),title:'新节点',content:'',status:'red',tag:'writing',children:[]};
+var i=p.children.findIndex(function(c){return c.id===act});
+p.children.splice(i+1,0,nd);act=nd.id;editId=nd.id;save();render();
+}
+
+function addChild(){
+var n=find(act);if(!n)return;
+var nd={id:uid(),title:'新节点',content:'',status:'red',tag:'writing',children:[]};
+n.children=n.children||[];n.children.push(nd);act=nd.id;editId=nd.id;save();render();
+}
+
+function delNode(){
+if(act==='root'){alert('不能删除根节点');return}
+var p=parent(act);if(!p)return;
+p.children=p.children.filter(function(c){return c.id!==act});
+act=p.id;save();render();
+}
+
+function chgStatus(){var n=find(act);if(n){n.status=document.getElementById('selStatus').value;save();drawTree();drawMid()}}
+function chgTag(){var n=find(act);if(n){n.tag=document.getElementById('selTag').value;save();drawMid()}}
+
+function addTag(){
+var name=prompt('新板块名称：');
+if(!name||!name.trim())return;
+var id='c'+Date.now();
+custom.push({id:id,l:name.trim(),c:COLORS[custom.length%COLORS.length]});
+saveTags();drawTags();
+document.getElementById('selTag').value=id;chgTag();
+}
+
+function delTag(){
+var v=document.getElementById('selTag').value;
+var found=custom.find(function(t){return t.id===v});
+if(!found){alert('默认板块不能删除');return}
+if(!confirm('删除板块「'+found.l+'」？'))return;
+custom=custom.filter(function(t){return t.id!==v});
+saveTags();drawTags();document.getElementById('selTag').value='writing';chgTag();
+}
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+pullCloud();
+</script>
+</body>
+</html>
